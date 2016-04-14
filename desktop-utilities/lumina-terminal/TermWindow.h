@@ -13,11 +13,12 @@
 #include <QDir>
 #include <QShortcut>
 #include <QMouseEvent>
+#include <QSettings>
 
 class TermWindow : public QWidget{
 	Q_OBJECT
 public:
-	TermWindow();
+	TermWindow(QSettings *set);
 	~TermWindow();
 
 	void cleanup(); //called right before the window is closed
@@ -34,7 +35,8 @@ public slots:
 
 private:
 	QTabWidget *tabWidget;
-	QShortcut *hideS, *closeS, *newTabS, *closeTabS;
+	QSettings *settings;
+	QShortcut *hideS, *closeS, *newTabS, *closeTabS, *prevTabS, *nextTabS;
 	int screennum;
 	bool onTop, CLOSING;
 	QPropertyAnimation *ANIM;
@@ -49,7 +51,9 @@ private slots:
 	void New_Tab();
 	void Close_Tab(int tab = -1);
 	void Close_Tab(QString ID); //alternate form of the close routine - based on tab ID
-
+	void Next_Tab();
+	void Prev_Tab();
+	void focusOnWidget();
 	//Animation finishing
 	void AnimFinished();
 	

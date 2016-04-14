@@ -48,7 +48,7 @@ LSession::LSession(int &argc, char ** argv) : LSingleApplication(argc, argv, "lu
   TrayStopping = false;
   screenTimer = new QTimer(this);
     screenTimer->setSingleShot(true);
-    screenTimer->setInterval(2000); //2 seconds - This needs to be long(ish) to prevent being called while
+    screenTimer->setInterval(1000); //2 seconds - This needs to be long(ish) to prevent being called while
 				    // X is still setting up any screens
     connect(screenTimer, SIGNAL(timeout()), this, SLOT(updateDesktops()) );
   for(int i=1; i<argc; i++){
@@ -182,6 +182,7 @@ void LSession::CleanupSession(){
   //Create a temporary flag to prevent crash dialogs from opening during cleanup
   LUtils::writeFile("/tmp/.luminastopping",QStringList() << "yes", true);
   //Start the logout chimes (if necessary)
+  LOS::setAudioVolume( LOS::audioVolume() ); //make sure the audio volume is saved in the backend for the next login
   bool playaudio = sessionsettings->value("PlayLogoutAudio",true).toBool();
   if( playaudio ){ playAudioFile(LOS::LuminaShare()+"Logout.ogg"); }
   //Stop the background system tray (detaching/closing apps as necessary)
@@ -498,57 +499,43 @@ void LSession::updateDesktops(){
     return;
   }
 
-  //qDebug() << "  -- Desktop Flags:" << firstrun << numchange << DW->isVirtualDesktop();
-  for(int i=0; i<sC; i++){
-      bool found = false;
-      for (int j=0; j<DESKTOPS.length() && !found; j++) {
-	if( DESKTOPS[j]->Screen() == i ) { found = true; break; }
-      }
-      if(!found) {
-	//Start the desktop on the new screen
-        qDebug() << " - Start desktop on screen:" << i << DW->screenGeometry(i) << "Virtual:" << DW->isVirtualDesktop();
-        DESKTOPS << new LDesktop(i);
-      }
-  }
-
-  // If we only have one desktop, let's end here
-  if (DESKTOPS.length() <= 1) {
-    QTimer::singleShot(100,this, SLOT(registerDesktopWindows()));
-    return;
-  }
-
-  // If this isn't the initial setup
-  if (!firstrun) {
-
-    //Now go through and make sure to delete any desktops for detached screens
-    for (int i=1; i<DESKTOPS.length(); i++){
-      if (DESKTOPS[i]->Screen() >= sC) {
-        qDebug() << " - Close desktop:" << i;
+  //First clean up any current desktops
+  QList<int> dnums; //keep track of which screens are already managed
+  for(int i=0; i<DESKTOPS.length(); i++){
+    if (DESKTOPS[i]->Screen() >= sC) {
+        //qDebug() << " - Close desktop:" << i;
         qDebug() << " - Close desktop on screen:" << DESKTOPS[i]->Screen();
         DESKTOPS[i]->prepareToClose();
-        //delete DESKTOPS.takeAt(i);
-        DESKTOPS.removeAt(i);
+        DESKTOPS.takeAt(i)->deleteLater();
         i--;
       } else {
-        qDebug() << " - Show desktop:" << i;
+        //qDebug() << " - Show desktop:" << i;
         qDebug() << " - Show desktop on screen:" << DESKTOPS[i]->Screen();
         DESKTOPS[i]->UpdateGeometry();
         DESKTOPS[i]->show();
+	dnums << DESKTOPS[i]->Screen();
         //QTimer::singleShot(0,DESKTOPS[i], SLOT(checkResolution()));
-      }
+      }  
+  }
+  
+  //Now add any new desktops
+  for(int i=0; i<sC; i++){
+    if(!dnums.contains(i)){
+      //Start the desktop on this screen
+      qDebug() << " - Start desktop on screen:" << i;
+      DESKTOPS << new LDesktop(i);
     }
-
-    //Make sure fluxbox also gets prompted to re-load screen config if the number of screens changes
-    if (numchange) {
+  }
+  
+  //Make sure fluxbox also gets prompted to re-load screen config if the number of screens changes in the middle of a session
+    if(numchange && !firstrun) {
       qDebug() << "Update WM";
       //QTimer::singleShot(1000,WM, SLOT(restartWM()));  //Note: This causes crashes in X if a full-screen app
       WM->updateWM();
     }
-  } // End of !firstrun
 
   //Make sure all the background windows are registered on the system as virtual roots
   QTimer::singleShot(100,this, SLOT(registerDesktopWindows()));
-  //qDebug() << " - Done Checking Desktops";
 }
 
 void LSession::registerDesktopWindows(){

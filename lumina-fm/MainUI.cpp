@@ -41,6 +41,7 @@ QSize orig = settings->value("preferences/MainWindowSize", QSize()).toSize();
     if(orig.height() > screen.height()){ orig.setHeight(screen.height()); }
     //Now resize the window
     this->resize(orig);
+  }
   //initialize the non-ui widgets
   if(DEBUG){ qDebug() << " - Tab Bar Setup"; }
   tabBar = new QTabBar(this);
@@ -914,11 +915,4 @@ void MainUI::CloseBrowser(QString ID){
   if(DWLIST.isEmpty()){
     OpenDirs(QStringList() << QDir::homePath());
   }
-}
-// ======================
-
-void MainUI::resizeEvent(QResizeEvent *event){
-  //Save the new size internally
-  settings->setValue("geometry/height", event->size().height());
-  settings->setValue("geometry/width", event->size().width());
 }
